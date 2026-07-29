@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EcoRadar 🌍</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🌍 EcoRadar</h1>
+    <div id="authBar">
+      <span id="userLabel"></span>
+      <button id="themeToggle">🌙</button>
+      <button id="loginBtn">Login</button>
+      <button id="signupBtn">Sign Up</button>
+      <button id="logoutBtn" class="hidden">Logout</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="feed">Issue Feed</button>
+    <button class="tab-btn" data-tab="report">Report Issue</button>
+    <button class="tab-btn" data-tab="leaderboard">🌱 Leaderboard</button>
+    <button class="tab-btn" data-tab="impact">📊 Impact</button>
+    <button class="tab-btn" data-tab="duplicates">🔎 Duplicates</button>
+  </nav>
+
+  <main>
+    <section id="feed" class="tab-panel active">
+      <h2>Issue Feed</h2>
+      <div class="filter-row">
+        <label>From <input type="date" id="filterStart" /></label>
+        <label>To <input type="date" id="filterEnd" /></label>
+        <button id="applyFilter">Filter (two-pointer window)</button>
+        <button id="clearFilter">Clear</button>
+      </div>
+      <div id="issueList" class="card-grid"></div>
+    </section>
+
+    <section id="report" class="tab-panel">
+      <h2>Report an Eco Issue</h2>
+      <form id="reportForm">
+        <input type="text" id="title" placeholder="Issue title" required />
+        <select id="category">
+          <option value="water_pollution">Water Pollution</option>
+          <option value="air_pollution">Air Pollution</option>
+          <option value="deforestation">Deforestation</option>
+          <option value="illegal_dumping">Illegal Dumping</option>
+          <option value="industrial_effluents">Industrial Effluents</option>
+        </select>
+        <select id="severity">
+          <option value="low">Low</option>
+          <option value="moderate">Moderate</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <div class="coord-row">
+          <input type="number" step="any" id="lat" placeholder="Latitude (e.g. 12.9141)" required />
+          <input type="number" step="any" id="lng" placeholder="Longitude (e.g. 74.8560)" required />
+        </div>
+        <button type="submit">Submit Report</button>
+      </form>
+      <p id="reportMsg"></p>
+    </section>
+
+    <section id="leaderboard" class="tab-panel">
+      <h2>🌱 Eco Warriors Leaderboard</h2>
+      <p class="hint">Ranked with a two-pointer merge sort, badges assigned via a single tier-boundary scan.</p>
+      <table id="leaderboardTable">
+        <thead><tr><th>Rank</th><th>Name</th><th>Points</th><th>Badge</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="impact" class="tab-panel">
+      <h2>📊 Impact Dashboard</h2>
+      <div id="impactCards" class="card-grid"></div>
+    </section>
+
+    <section id="duplicates" class="tab-panel">
+      <h2>🔎 Duplicate / Nearby Report Clusters</h2>
+      <p class="hint">Sorted by latitude, scanned with a two-pointer window against a distance radius — avoids comparing every pair.</p>
+      <div id="dupList" class="card-grid"></div>
+    </section>
+  </main>
+
+  <div id="authModal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="authModalTitle">Login</h3>
+      <input type="text" id="authName" placeholder="Name" class="hidden" />
+      <input type="email" id="authEmail" placeholder="Email" />
+      <input type="password" id="authPassword" placeholder="Password" />
+      <button id="authSubmit">Submit</button>
+      <button id="authCancel">Cancel</button>
+      <p id="authMsg"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
