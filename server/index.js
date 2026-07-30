@@ -73,7 +73,7 @@ app.post("/api/issues", (req, res) => {
     createdAt: Date.now(),
   };
   db.issues.push(issue);
-  user.points += 10; // array + pointer update, no ORM save()
+  user.points += 10;
 
   res.json(issue);
 });

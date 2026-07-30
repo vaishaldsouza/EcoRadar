@@ -1,13 +1,10 @@
 # EcoRadar 🌍
 
-A full-stack environmental reporting platform — same idea as the original
-EcoPulse concept, rebuilt so its **entire data layer and core logic run
-on plain arrays and two-pointer algorithms**, with no database.
+A full-stack environmental reporting platform — its **entire data layer and core logic run on plain arrays and two-pointer algorithms**, with no database.
 
 ## Why "array + two pointers"?
 
-Every non-trivial backend operation avoids hashmaps/ORMs and instead
-uses index-based array algorithms:
+Every non-trivial backend operation avoids hashmaps/ORMs and instead uses index-based array algorithms:
 
 | Feature | Algorithm | File |
 |---|---|---|
@@ -19,16 +16,15 @@ uses index-based array algorithms:
 | Matching-upvote pairs | Classic **two-pointer pair sum** on sorted array | `findUpvotePairsSummingTo` |
 | All storage (users/issues/messages) | Plain JS arrays, linear-scan lookups | `server/data.js` |
 
-There's no MongoDB and no `Map`/`Set` in the core logic — just arrays,
-indices, and pointers walking them.
+No MongoDB and no `Map`/`Set` in the core logic — just arrays, indices, and pointers walking them.
 
 ## Stack
 
 - **Backend:** Node.js + Express, in-memory arrays as the "database"
 - **Frontend:** Vanilla HTML/CSS/JS (no framework build step needed)
-- **Auth:** salted password hashing via Node's built-in `crypto` (scrypt)
+- **Auth:** Salted password hashing via Node's built-in `crypto` (scrypt)
 
-> Note: because storage is in-memory, all data resets when the server restarts.
+> Because storage is in-memory, all data resets when the server restarts.
 > Swap `server/data.js` for a real DB later without touching `algorithms.js`.
 
 ## Run locally
@@ -39,8 +35,7 @@ npm install
 npm start
 ```
 
-Then open **http://localhost:5000** — the Express server also serves the
-frontend from `public/`.
+Then open **http://localhost:5000** — the Express server also serves the frontend from `public/`.
 
 ## Project structure
 
@@ -48,8 +43,8 @@ frontend from `public/`.
 EcoRadar/
 ├── server/
 │   ├── index.js        # Express routes / API
-│   ├── data.js          # in-memory arrays (users, issues, messages)
-│   ├── algorithms.js    # two-pointer algorithms (the core of the app)
+│   ├── data.js         # in-memory arrays (users, issues, messages)
+│   ├── algorithms.js   # two-pointer algorithms (the core of the app)
 │   └── package.json
 ├── public/
 │   ├── index.html

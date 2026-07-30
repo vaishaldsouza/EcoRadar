@@ -51,7 +51,7 @@ const BADGE_TIERS = [
 
 function assignBadges(sortedDescByPoints) {
   const out = [];
-  let lo = 0; // pointer into sortedDescByPoints
+  let lo = 0;
   for (const tier of BADGE_TIERS) {
     let hi = lo;
     while (hi < sortedDescByPoints.length && sortedDescByPoints[hi].points >= tier.min) {
@@ -105,7 +105,6 @@ function findDuplicateClusters(issues, radiusKm = 0.3) {
     const cluster = [sorted[i]];
     visited[i] = true;
     let j = i + 1;
-    // window only stays open while latitude is within possible radius
     const maxLatDelta = radiusKm / LAT_DEGREE_KM;
     while (j < sorted.length && sorted[j].lat - sorted[i].lat <= maxLatDelta) {
       if (
