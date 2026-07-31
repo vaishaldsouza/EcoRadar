@@ -55,25 +55,41 @@ app.post("/api/auth/login", (req, res) => {
 });
 
 // -------------------- issues --------------------
+
+// POST /api/issues
+// Anti-spam check (Contains Duplicate II pattern) — if isSpamReport()
+// detects a near-identical report from the same user within the recent
+// index + time window, the issue is saved but flagged spam:true and
+// points are NOT awarded.
 app.post("/api/issues", (req, res) => {
   const { userId, title, category, severity, lat, lng } = req.body;
   const user = db.findUserById(userId);
   if (!user) return res.status(404).json({ error: "User not found" });
+
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+
+  // Anti-spam check — O(min(n, 20)) backward scan
+  const spam = algo.isSpamReport(db.issues, userId, latNum, lngNum);
 
   const issue = {
     id: db.nextIds.issue(),
     userId,
     title,
     category,
-    severity, // low | moderate | high | critical
-    lat: Number(lat),
-    lng: Number(lng),
+    severity,
+    lat: latNum,
+    lng: lngNum,
     status: "pending",
     upvotes: 0,
+    spam,
     createdAt: Date.now(),
   };
   db.issues.push(issue);
-  user.points += 10;
+
+  if (!spam) {
+    user.points += 10;
+  }
 
   res.json(issue);
 });
@@ -87,7 +103,7 @@ app.get("/api/issues", (req, res) => {
     const windowed = algo.filterByDateRangeSorted(byDateAsc, Number(start), Number(end));
     return res.json(windowed);
   }
-  res.json(byDateAsc.slice().reverse()); // newest first for default feed
+  res.json(byDateAsc.slice().reverse());
 });
 
 app.post("/api/issues/:id/upvote", (req, res) => {
@@ -125,8 +141,13 @@ app.get("/api/issues/matching-upvotes", (req, res) => {
   res.json(algo.findUpvotePairsSummingTo(db.issues, target));
 });
 
+// GET /api/issues/triage — Dutch National Flag single-pass partition
+// critical/high first | moderate middle | low last — O(n), no sort
+app.get("/api/issues/triage", (req, res) => {
+  res.json(algo.triagePartition(db.issues));
+});
+
 // -------------------- leaderboard --------------------
-// GET /api/leaderboard -> merge sort (two-pointer merge) + badge tiering
 app.get("/api/leaderboard", (req, res) => {
   const sorted = algo.mergeSortByPoints(db.users);
   const withBadges = algo.assignBadges(sorted).map((u) => ({
@@ -161,6 +182,28 @@ app.get("/api/impact", (req, res) => {
     co2eqPreventedKg: resolvedCount * 8,
     byCategory,
   });
+});
+
+// GET /api/impact/majority-category?lat=&lng=&radiusKm=
+// Boyer-Moore majority vote — O(n) time, O(1) space
+app.get("/api/impact/majority-category", (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  const radiusKm = req.query.radiusKm ? Number(req.query.radiusKm) : 5;
+
+  if (isNaN(lat) || isNaN(lng)) {
+    return res.status(400).json({ error: "lat and lng are required" });
+  }
+
+  const inZone = [];
+  for (let i = 0; i < db.issues.length; i++) {
+    if (algo.haversineKm(lat, lng, db.issues[i].lat, db.issues[i].lng) <= radiusKm) {
+      inZone.push(db.issues[i]);
+    }
+  }
+
+  const majority = algo.findMajorityCategory(inZone);
+  res.json({ majority });
 });
 
 // -------------------- messaging --------------------

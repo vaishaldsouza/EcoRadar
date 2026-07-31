@@ -168,6 +168,139 @@ function findUpvotePairsSummingTo(issues, target) {
   return pairs;
 }
 
+// ---------------------------------------------------------------------
+// 7. ANTI-SPAM THROTTLING — pattern: Contains Duplicate II
+//
+//    Scans the issues array with a single pointer (i walks backward from
+//    the end, i.e. most-recent first). Within a sliding window of
+//    `indexDistance` entries AND a time window of `withinMs`, we check
+//    whether the same userId has already filed a report whose coordinates
+//    are within 0.1 km of the new report's coordinates.
+//
+//    Complexity: O(min(n, indexDistance)) — bounded window scan.
+//    No hashmap — plain array index arithmetic.
+// ---------------------------------------------------------------------
+function isSpamReport(issues, userId, lat, lng, withinMs = 10 * 60 * 1000, indexDistance = 20) {
+  const now = Date.now();
+  const n = issues.length;
+
+  // Walk backward from the most recent entry, staying within the window
+  for (let i = n - 1; i >= 0 && i >= n - indexDistance; i--) {
+    const prev = issues[i];
+
+    // Only inspect reports from the same user
+    if (prev.userId !== userId) continue;
+
+    // Time window check (sliding window boundary)
+    if (now - prev.createdAt > withinMs) continue;
+
+    // Coordinate proximity check — reuse existing haversineKm
+    if (haversineKm(lat, lng, prev.lat, prev.lng) <= 0.1) {
+      return true; // duplicate found within window
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------
+// 8. DOMINANT ISSUE TYPE PER ZONE — pattern: Majority Element (Boyer-Moore)
+//
+//    Given an array of issues filtered to a geographic zone, uses the
+//    Boyer-Moore Voting algorithm to find a candidate majority category
+//    in a single pass (O(n) time, O(1) extra space — no frequency map).
+//    Then does a second O(n) pass to verify the candidate actually
+//    exceeds 50% of the total (strict majority, not just plurality).
+//
+//    Returns { category, count, total, pct } if a majority exists,
+//    or null if no single category exceeds 50%.
+// ---------------------------------------------------------------------
+function findMajorityCategory(issuesInZone) {
+  if (issuesInZone.length === 0) return null;
+
+  // --- Pass 1: Boyer-Moore candidate selection ---
+  // Maintain a single candidate and a vote counter (no array/map).
+  // When counter hits 0, the current element becomes the new candidate.
+  let candidate = null;
+  let count = 0;
+
+  for (let i = 0; i < issuesInZone.length; i++) {
+    const cat = issuesInZone[i].category;
+    if (count === 0) {
+      candidate = cat;
+      count = 1;
+    } else if (cat === candidate) {
+      count++;
+    } else {
+      count--;
+    }
+  }
+
+  // --- Pass 2: Verify candidate is a true majority (> 50%) ---
+  let tally = 0;
+  for (let i = 0; i < issuesInZone.length; i++) {
+    if (issuesInZone[i].category === candidate) tally++;
+  }
+
+  const total = issuesInZone.length;
+  if (tally * 2 <= total) return null; // not a strict majority
+
+  return {
+    category: candidate,
+    count: tally,
+    total,
+    pct: Math.round((tally / total) * 100),
+  };
+}
+
+// ---------------------------------------------------------------------
+// 9. ONE-PASS SEVERITY TRIAGE — pattern: Dutch National Flag / Sort Colors
+//
+//    Partitions a copy of the issues array in a single pass into three
+//    buckets: critical+high | moderate | low — without a separate sort.
+//
+//    Uses three pointers: lo (boundary of critical/high bucket),
+//    mid (current element), hi (boundary of low bucket).
+//    Elements are swapped in-place on the working copy.
+//
+//    Complexity: O(n) time, O(n) space (we copy to avoid mutating db).
+// ---------------------------------------------------------------------
+
+// Map each severity to a bucket index (0 = urgent, 1 = moderate, 2 = low)
+function _severityBucket(issue) {
+  if (issue.severity === "critical" || issue.severity === "high") return 0;
+  if (issue.severity === "moderate") return 1;
+  return 2; // low
+}
+
+function triagePartition(issues) {
+  // Work on a shallow copy — never mutate the in-memory db array
+  const arr = issues.slice();
+  let lo = 0;           // next slot for bucket-0 (critical/high)
+  let mid = 0;          // current element under inspection
+  let hi = arr.length - 1; // next slot for bucket-2 (low), scanning from right
+
+  while (mid <= hi) {
+    const bucket = _severityBucket(arr[mid]);
+
+    if (bucket === 0) {
+      // Swap current element to the front (lo) and advance both lo and mid
+      [arr[lo], arr[mid]] = [arr[mid], arr[lo]];
+      lo++;
+      mid++;
+    } else if (bucket === 1) {
+      // Already in the right middle zone — just advance mid
+      mid++;
+    } else {
+      // bucket === 2: swap current element to the back (hi), only retreat hi
+      // (don't advance mid — the swapped-in element at mid needs inspection)
+      [arr[mid], arr[hi]] = [arr[hi], arr[mid]];
+      hi--;
+    }
+  }
+
+  return arr;
+}
+
 module.exports = {
   mergeSortByPoints,
   assignBadges,
@@ -176,4 +309,7 @@ module.exports = {
   mergeTimelines,
   findUpvotePairsSummingTo,
   haversineKm,
+  isSpamReport,
+  findMajorityCategory,
+  triagePartition,
 };

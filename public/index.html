@@ -7,6 +7,37 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="eco-background" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="skyFade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#eaf6ee"/>
+          <stop offset="100%" stop-color="#dcf0e3"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#skyFade)"/>
+      <path d="M0,650 Q200,580 400,640 T800,620 T1200,650 T1600,610 V900 H0 Z" fill="#cdeed8"/>
+      <path d="M0,720 Q250,660 500,710 T1000,690 T1600,720 V900 H0 Z" fill="#b9e6c9"/>
+      <g fill="#9cd7ae" opacity="0.55">
+        <g transform="translate(120,560)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+        <g transform="translate(280,600) scale(0.8)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+        <g transform="translate(1380,540) scale(1.1)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+        <g transform="translate(1480,610) scale(0.75)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+        <g transform="translate(60,650) scale(0.6)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+      </g>
+      <g fill="#7fc998" opacity="0.5">
+        <g transform="translate(200,610) scale(0.9)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+        <g transform="translate(1440,590) scale(0.9)"><ellipse cx="0" cy="-70" rx="55" ry="80"/><rect x="-8" y="-10" width="16" height="60"/></g>
+      </g>
+      <g fill="#5fb87d" opacity="0.35">
+        <ellipse cx="700" cy="120" rx="14" ry="8" transform="rotate(30 700 120)"/>
+        <ellipse cx="900" cy="200" rx="14" ry="8" transform="rotate(-20 900 200)"/>
+        <ellipse cx="500" cy="260" rx="14" ry="8" transform="rotate(60 500 260)"/>
+        <ellipse cx="1100" cy="140" rx="14" ry="8" transform="rotate(10 1100 140)"/>
+      </g>
+    </svg>
+  </div>
+
   <header class="topbar">
     <h1>🌍 EcoRadar</h1>
     <div id="authBar">
@@ -24,6 +55,7 @@
     <button class="tab-btn" data-tab="leaderboard">🌱 Leaderboard</button>
     <button class="tab-btn" data-tab="impact">📊 Impact</button>
     <button class="tab-btn" data-tab="duplicates">🔎 Duplicates</button>
+    <button class="tab-btn" data-tab="triage">🚨 Triage</button>
   </nav>
 
   <main>
@@ -62,11 +94,14 @@
         <button type="submit">Submit Report</button>
       </form>
       <p id="reportMsg"></p>
+      <p id="spamWarning" class="spam-warning hidden">
+        ⚠️ Possible duplicate report detected near this location. Your report was saved but points were not awarded.
+      </p>
     </section>
 
     <section id="leaderboard" class="tab-panel">
       <h2>🌱 Eco Warriors Leaderboard</h2>
-      <p class="hint">Ranked with a two-pointer merge sort, badges assigned via a single tier-boundary scan.</p>
+      <p class="hint">Ranked via two-pointer merge sort — O(n log n). Badges assigned in a single tier-boundary pointer scan.</p>
       <table id="leaderboardTable">
         <thead><tr><th>Rank</th><th>Name</th><th>Points</th><th>Badge</th></tr></thead>
         <tbody></tbody>
@@ -75,13 +110,37 @@
 
     <section id="impact" class="tab-panel">
       <h2>📊 Impact Dashboard</h2>
+      <div class="filter-row" style="margin-bottom:16px">
+        <label>Zone lat <input type="number" step="any" id="majorityLat" placeholder="e.g. 12.9141" style="width:130px" /></label>
+        <label>Zone lng <input type="number" step="any" id="majorityLng" placeholder="e.g. 74.8560" style="width:130px" /></label>
+        <label>Radius km <input type="number" step="any" id="majorityRadius" value="5" style="width:70px" /></label>
+        <button id="checkMajority">Check Dominant Issue</button>
+      </div>
+      <div id="majorityCallout"></div>
       <div id="impactCards" class="card-grid"></div>
     </section>
 
     <section id="duplicates" class="tab-panel">
       <h2>🔎 Duplicate / Nearby Report Clusters</h2>
-      <p class="hint">Sorted by latitude, scanned with a two-pointer window against a distance radius — avoids comparing every pair.</p>
+      <p class="hint">Sorted by latitude, scanned with a two-pointer window — avoids O(n²) brute force.</p>
       <div id="dupList" class="card-grid"></div>
+    </section>
+
+    <section id="triage" class="tab-panel">
+      <h2>🚨 Severity Triage</h2>
+      <p class="hint">Single O(n) pass — Dutch National Flag / Sort Colors (3-pointer). Critical &amp; high always surface first.</p>
+      <div class="triage-bucket triage-urgent">
+        <h3>🔴 Critical / High</h3>
+        <div id="triageUrgent" class="card-grid"></div>
+      </div>
+      <div class="triage-bucket triage-moderate">
+        <h3>🟡 Moderate</h3>
+        <div id="triageModerate" class="card-grid"></div>
+      </div>
+      <div class="triage-bucket triage-low">
+        <h3>🟢 Low</h3>
+        <div id="triageLow" class="card-grid"></div>
+      </div>
     </section>
   </main>
 

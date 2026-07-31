@@ -33,6 +33,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     if (btn.dataset.tab === "impact") loadImpact();
     if (btn.dataset.tab === "duplicates") loadDuplicates();
     if (btn.dataset.tab === "feed") loadFeed();
+    if (btn.dataset.tab === "triage") loadTriage();
   });
 });
 
@@ -105,8 +106,9 @@ async function loadFeed(start, end) {
   list.innerHTML = issues
     .map(
       (i) => `
-    <div class="card severity-${i.severity}">
+    <div class="card severity-${i.severity}${i.spam ? " spam-card" : ""}">
       <span class="badge-tag">${i.severity}</span>
+      ${i.spam ? '<span class="spam-tag">⚠️ spam flag</span>' : ""}
       <h4>${escapeHtml(i.title)}</h4>
       <p>${i.category.replace(/_/g, " ")}</p>
       <p>📍 ${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}</p>
@@ -134,10 +136,13 @@ document.getElementById("clearFilter").onclick = () => {
   loadFeed();
 };
 
-// ---------------- report form ----------------
+// ---------------- report form (anti-spam warning) ----------------
 document.getElementById("reportForm").onsubmit = async (e) => {
   e.preventDefault();
   const msg = document.getElementById("reportMsg");
+  const spamWarning = document.getElementById("spamWarning");
+  spamWarning.classList.add("hidden");
+
   if (!currentUser) {
     msg.textContent = "Please log in first.";
     return;
@@ -155,11 +160,17 @@ document.getElementById("reportForm").onsubmit = async (e) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  const data = await res.json();
   if (res.ok) {
-    currentUser.points += 10;
-    localStorage.setItem("ecoradar_user", JSON.stringify(currentUser));
-    refreshAuthUI();
-    msg.textContent = "✅ Issue reported! +10 points";
+    if (data.spam) {
+      msg.textContent = "⚠️ Report submitted (flagged as possible duplicate).";
+      spamWarning.classList.remove("hidden");
+    } else {
+      currentUser.points += 10;
+      localStorage.setItem("ecoradar_user", JSON.stringify(currentUser));
+      refreshAuthUI();
+      msg.textContent = "✅ Issue reported! +10 points";
+    }
     e.target.reset();
     loadFeed();
   } else {
@@ -190,6 +201,34 @@ async function loadImpact() {
   `;
 }
 
+// Boyer-Moore majority category check
+document.getElementById("checkMajority").onclick = async () => {
+  const lat = document.getElementById("majorityLat").value;
+  const lng = document.getElementById("majorityLng").value;
+  const radius = document.getElementById("majorityRadius").value || 5;
+  const callout = document.getElementById("majorityCallout");
+
+  if (!lat || !lng) {
+    callout.innerHTML = '<p class="hint">Enter a latitude and longitude first.</p>';
+    return;
+  }
+
+  const res = await fetch(`${API}/impact/majority-category?lat=${lat}&lng=${lng}&radiusKm=${radius}`);
+  const data = await res.json();
+
+  if (!data.majority) {
+    callout.innerHTML = `<div class="callout callout-neutral">No single category dominates within ${radius} km of this location.</div>`;
+  } else {
+    const label = data.majority.category.replace(/_/g, " ");
+    callout.innerHTML = `
+      <div class="callout callout-alert">
+        ⚠️ <strong>${data.majority.pct}% of reports in this zone are ${label}</strong>
+        — flagged for targeted cleanup
+        <span class="hint">(${data.majority.count} of ${data.majority.total} reports within ${radius} km)</span>
+      </div>`;
+  }
+};
+
 // ---------------- duplicates ----------------
 async function loadDuplicates() {
   const res = await fetch(`${API}/issues/duplicates`);
@@ -207,6 +246,32 @@ async function loadDuplicates() {
       .join("") || "<p>No nearby duplicate clusters detected.</p>";
 }
 
+// ---------------- triage (Dutch National Flag) ----------------
+async function loadTriage() {
+  const res = await fetch(`${API}/issues/triage`);
+  const issues = await res.json();
+
+  const urgent   = issues.filter((i) => i.severity === "critical" || i.severity === "high");
+  const moderate = issues.filter((i) => i.severity === "moderate");
+  const low      = issues.filter((i) => i.severity === "low");
+
+  function renderCards(arr) {
+    return arr.map((i) => `
+      <div class="card severity-${i.severity}">
+        <span class="badge-tag">${i.severity}</span>
+        <h4>${escapeHtml(i.title)}</h4>
+        <p>${i.category.replace(/_/g, " ")}</p>
+        <p>📍 ${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}</p>
+        <p>⬆️ ${i.upvotes} upvotes • ${i.status}</p>
+      </div>`).join("") || "<p class='hint'>None.</p>";
+  }
+
+  document.getElementById("triageUrgent").innerHTML   = renderCards(urgent);
+  document.getElementById("triageModerate").innerHTML = renderCards(moderate);
+  document.getElementById("triageLow").innerHTML      = renderCards(low);
+}
+
+// ---------------- utils ----------------
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
